@@ -4,6 +4,7 @@ import settings
 from engine.player import Player
 from levels.level_1 import Level1Troll
 from levels.level_16 import Level16Boss
+from levels.level_7_adapter import run_level_7
 from scenes.lobby import Lobby
 from engine.renderer import draw_transition_screen
 
@@ -38,6 +39,14 @@ def main():
                             if door.id == 1:
                                 current_state = "TRANSITION_L1"
                                 transition_timer = 180
+                            elif door.id == 7:
+                                # Level 7 roda como subprocesso
+                                won = run_level_7()
+                                if won:
+                                    lobby.doors[6].color = (0, 255, 0)
+                                player.rect.x, player.rect.y = lobby_pos
+                                current_state = "LOBBY"
+                                current_ods = None
                             elif door.id == 16:
                                 current_state = "LEVEL_16"
                                 level16.reset(settings.WIDTH, settings.HEIGHT)

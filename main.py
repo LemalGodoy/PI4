@@ -6,6 +6,7 @@ from levels.level_1 import Level1Troll
 from levels.level_16 import Level16Boss
 from levels.level_7_adapter import run_level_7
 from scenes.lobby import Lobby
+from scenes.cutscene_ods3 import CutsceneODS3
 from engine.renderer import draw_transition_screen
 
 
@@ -20,6 +21,7 @@ def main():
     current_ods = None
     transition_timer = 0
     lobby_pos = (player.rect.x, player.rect.y)
+    cutscene_l1 = None
 
     while True:
         keys = pygame.key.get_pressed()
@@ -37,8 +39,8 @@ def main():
                             current_ods = door
                             lobby_pos = (player.rect.x, player.rect.y)
                             if door.id == 1:
-                                current_state = "TRANSITION_L1"
-                                transition_timer = 180
+                                current_state = "CUTSCENE_L1"
+                                cutscene_l1 = CutsceneODS3(settings.WIDTH, settings.HEIGHT)
                             elif door.id == 7:
                                 # Level 7 roda como subprocesso
                                 won = run_level_7()
@@ -54,15 +56,27 @@ def main():
                             else:
                                 current_state = f"LEVEL_{door.id}"
 
-                elif current_state.startswith("LEVEL_") or current_state == "TRANSITION_L1":
+                elif current_state.startswith("LEVEL_") or current_state == "CUTSCENE_L1":
                     if event.key == pygame.K_ESCAPE:
-                        if current_state in ["LEVEL_1", "TRANSITION_L1", "LEVEL_16"]:
+                        if current_state == "CUTSCENE_L1":
+                            # Pular cutscene vai direto pro level
+                            cutscene_l1 = None
+                            current_state = "LEVEL_1"
+                            level1.reset(settings.screen.get_width(),
+                                         settings.screen.get_height(), player)
+                            player.rect.x, player.rect.y = level1.player_start
+                        elif current_state in ["LEVEL_1", "LEVEL_16"]:
                             player.rect.x, player.rect.y = lobby_pos
                             player.inverted_controls = False
+                            current_state = "LOBBY"
+                            current_ods = None
                         else:
                             player.rect.y += 30
-                        current_state = "LOBBY"
-                        current_ods = None
+                            current_state = "LOBBY"
+                            current_ods = None
+                    # Passar eventos para a cutscene
+                    elif current_state == "CUTSCENE_L1" and cutscene_l1:
+                        cutscene_l1.handle_event(event)
 
         # ========================================== #
         # UPDATE & DRAW POR ESTADO
@@ -72,13 +86,17 @@ def main():
             lobby.update(player, keys)
             lobby.draw(settings.screen, player)
 
-        elif current_state == "TRANSITION_L1":
-            draw_transition_screen(settings.screen)
-            transition_timer -= 1
-            if transition_timer <= 0:
-                current_state = "LEVEL_1"
-                level1.reset(settings.screen.get_width(), settings.screen.get_height(), player)
-                player.rect.x, player.rect.y = level1.player_start
+        elif current_state == "CUTSCENE_L1":
+            if cutscene_l1:
+                cutscene_l1.update()
+                cutscene_l1.draw(settings.screen)
+
+                if cutscene_l1.finished:
+                    cutscene_l1 = None
+                    current_state = "LEVEL_1"
+                    level1.reset(settings.screen.get_width(),
+                                 settings.screen.get_height(), player)
+                    player.rect.x, player.rect.y = level1.player_start
 
         elif current_state == "LEVEL_1":
             if not level1.won:
